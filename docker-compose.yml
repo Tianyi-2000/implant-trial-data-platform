@@ -1,0 +1,15 @@
+# Local demo database. Credentials are for this sandbox only.
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: itdp_admin
+      POSTGRES_PASSWORD: itdp_admin
+      POSTGRES_DB: itdp
+    ports:
+      - "5433:5432"   # 5433 so it never collides with a PostgreSQL already running on the host
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U itdp_admin -d itdp"]
+      interval: 2s
+      timeout: 3s
+      retries: 30

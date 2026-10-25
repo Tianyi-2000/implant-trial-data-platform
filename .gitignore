@@ -1,0 +1,11 @@
+# Generated, never committed: raw/ is rebuilt from a fixed seed, landing/ simulates object storage.
+raw/
+landing/
+out/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+dbt/target/
+dbt/logs/
+.DS_Store
