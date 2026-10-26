@@ -1,0 +1,81 @@
+# Requirements this prototype is built and tested against.
+# Every test names the requirement it verifies with @pytest.mark.req("REQ-xx"). tests/conftest.py refuses
+# to run a test that names none, or names one that isn't listed here.
+# status: tested = has tests in tests/; planned = not built yet.
+
+- id: REQ-01
+  text: Every received file is kept unchanged and read-only under its SHA-256 hash, including files that are rejected.
+  adr: ADR-001
+  status: tested
+
+- id: REQ-02
+  text: A file is loaded at most once. Receiving the same bytes again, under any name or from two loaders at the same time, changes nothing.
+  adr: ADR-005, ADR-009
+  status: tested
+
+- id: REQ-03
+  text: Rows are identified by their business key (visit, electrode, test condition). A re-export with the same values adds nothing.
+  adr: ADR-005
+  status: tested
+
+- id: REQ-04
+  text: A load never overwrites a stored value. A resent value that differs is kept aside in a data query.
+  adr: ADR-005, ADR-008
+  status: tested
+
+- id: REQ-05
+  text: A file whose device serial does not belong to its subject, or whose subject, site, visit or electrodes are unknown, is quarantined whole. No row of it is loaded.
+  adr: ADR-005
+  status: tested
+
+- id: REQ-06
+  text: A physically implausible value is held back, kept exactly as received, and raises a data query. The rest of the file loads.
+  adr: ADR-005, ADR-007
+  status: tested
+
+- id: REQ-07
+  text: A file the parser cannot fully read (format, version, unit, columns, values, row count) is rejected whole, with the parser version recorded. Only a newer parser version may try it again.
+  adr: ADR-006
+  status: tested
+
+- id: REQ-08
+  text: A file counts as loaded only if every row in its header's row count is accounted for as new, duplicate, conflict or rejected. Otherwise nothing of it is kept.
+  adr: ADR-005
+  status: tested
+
+- id: REQ-09
+  text: Every insert, update and delete in the system of record is audited with the login, the time, the old and new values, and, for updates and deletes, a required reason.
+  adr: ADR-002
+  status: tested
+
+- id: REQ-10
+  text: A service account must state who or what each change is for.
+  adr: ADR-002
+  status: tested
+
+- id: REQ-11
+  text: No application role can write, change or delete audit rows, and nobody can TRUNCATE an audited table.
+  adr: ADR-003
+  status: tested
+
+- id: REQ-12
+  text: Only a data manager closes a data query, with a decision and a reason, in the same transaction as the change it makes. A decision on a stored value that changed since the query was raised is refused.
+  adr: ADR-008
+  status: tested
+
+- id: REQ-13
+  text: A locked visit refuses every change to it and its measurements, from a load or a person, until it is unlocked with a reason. Only a verified visit can be locked.
+  adr: ADR-009
+  status: tested
+
+- id: REQ-14
+  text: An implant has at most one active stimulation configuration at any moment.
+  status: tested
+
+- id: REQ-15
+  text: The analysis layer is rebuilt from the system of record and passes its data tests.
+  status: planned
+
+- id: REQ-16
+  text: A report links electrode impedance over time back to the manufacturing lot.
+  status: planned

@@ -11,30 +11,60 @@ CREATE SCHEMA core;
 -- ops: lineage and data queries
 -- ============================================================
 
--- One row per received file. The same file twice is a no-op (UNIQUE on its hash, not its name).
+-- One row per received file: the receipt. Every loaded row points back to its batch (ADR-005).
+-- A file is recognized by its content hash, never by its name.
 CREATE TABLE ops.ingest_batch (
   ingest_batch_id    bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   source_system      text     NOT NULL CHECK (source_system IN ('setup', 'edc', 'fitting_export', 'bench')),
+  source_name        text     NOT NULL,                 -- the file name as received
   source_uri         text     NOT NULL,                 -- the raw file in the write-once landing zone
   sha256             char(64) NOT NULL,
-  parser_version     text     NOT NULL,                 -- version of the loader that read it
-  row_count_expected int,                               -- from the file header
-  row_count_loaded   int,
+  parser_version     text     NOT NULL,                 -- version of the parser that read it
   status             text     NOT NULL CHECK (status IN ('received', 'loaded', 'quarantined', 'rejected')),
+  status_reason      text,
+  row_count_expected int,                               -- from the file header: the manifest
+  rows_inserted      int      NOT NULL DEFAULT 0,
+  rows_duplicate     int      NOT NULL DEFAULT 0,       -- already stored with the same values
+  rows_conflict      int      NOT NULL DEFAULT 0,       -- already stored with different values: data query
+  rows_rejected      int      NOT NULL DEFAULT 0,       -- implausible value: ops.rejected_row and data query
   received_at        timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (source_system, sha256)
+  -- Reconciliation: a batch only counts as loaded when every row of the manifest is accounted for.
+  CONSTRAINT reconciles CHECK (status <> 'loaded'
+    OR row_count_expected = rows_inserted + rows_duplicate + rows_conflict + rows_rejected),
+  CONSTRAINT nothing_loaded_when_held CHECK (status NOT IN ('quarantined', 'rejected') OR rows_inserted = 0),
+  -- A rejected file may be retried by a newer parser version, never twice by the same one.
+  UNIQUE (source_system, sha256, parser_version)
 );
+-- A file is loaded (or quarantined) at most once, whichever parser read it (ADR-009).
+CREATE UNIQUE INDEX ingest_batch_once ON ops.ingest_batch (source_system, sha256) WHERE status <> 'rejected';
 
--- A question back to the site or the engineer instead of a silent fix.
+-- A question back to the site or the engineer instead of a silent fix (ADR-008).
 CREATE TABLE ops.data_query (
   query_id        bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  query_type      text   NOT NULL CHECK (query_type IN ('conflict', 'rejected_row', 'quarantined_file', 'rejected_file')),
   table_name      text   NOT NULL,
-  record_id       bigint,
+  record_id       bigint,                     -- conflict: the stored row the query is about
   ingest_batch_id bigint REFERENCES ops.ingest_batch,
   issue           text   NOT NULL,
+  stored          jsonb,                      -- conflict: the stored row as the query saw it
+  proposed        jsonb,                      -- conflict: the resent values, applied only if accepted
   status          text   NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'answered', 'closed')),
   raised_at       timestamptz NOT NULL DEFAULT now(),
-  resolution      text
+  decision        text   CHECK (decision IN ('accept_resent', 'keep_stored')),
+  resolution      text,                       -- the data manager's reason
+  resolved_by     text,
+  resolved_at     timestamptz,
+  CHECK ((status = 'closed') = (decision IS NOT NULL AND resolved_by IS NOT NULL AND resolved_at IS NOT NULL)),
+  CHECK (decision IS DISTINCT FROM 'accept_resent' OR query_type = 'conflict')
+);
+
+-- Rows held back from a loaded batch, kept exactly as received (ADR-005). Each one raises a data query.
+CREATE TABLE ops.rejected_row (
+  rejected_row_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  ingest_batch_id bigint NOT NULL REFERENCES ops.ingest_batch,
+  line_no         int    NOT NULL,            -- data row number in the file, 1 = first row after the column names
+  raw_line        text   NOT NULL,
+  reason          text   NOT NULL
 );
 
 -- ============================================================
