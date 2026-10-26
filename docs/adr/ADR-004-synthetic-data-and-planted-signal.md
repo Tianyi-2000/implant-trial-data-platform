@@ -22,7 +22,7 @@ The prototype must not touch real patient data. It still needs data realistic en
 
 ## Consequences
 
-- The parameters are invented, not physiological reference values. The README says so.
+- The parameters are invented, not physiological reference values. [DETAILS.md](../DETAILS.md#known-limitations) says so.
 - Five planted problem files (A to E) replace or duplicate specific normal files, so each ingestion rule meets exactly one realistic failure. For example, file C is a real session exported under the wrong subject: the subject was picked by a person, and the device serial was read from the hardware.
 
 ## Alternatives considered

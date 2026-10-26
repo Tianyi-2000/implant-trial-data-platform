@@ -17,7 +17,7 @@ Every change to a clinical record has to be attributable (ALCOA+; 21 CFR Part 11
 
 ## Consequences
 
-- In a real web application, many users share one connection pool login. There, `app_user` is only as trustworthy as the application's own authentication. This is a known limitation, stated in the README.
+- In a real web application, many users share one connection pool login. There, `app_user` is only as trustworthy as the application's own authentication. This is a known limitation, stated in [DETAILS.md](../DETAILS.md#known-limitations).
 - A superuser can change `session_user` with `SET SESSION AUTHORIZATION`. Superuser access needs its own controls: see ADR-003.
 
 ## Alternatives considered
